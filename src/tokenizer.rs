@@ -21,8 +21,7 @@ pub enum Token<'t> {
     Space,
     OpenParen,
     CloseParen,
-    Comma,
-    Plus,
+    AddOperator,
 }
 
 impl<'t> Iterator for Tokenizer<'t> {
@@ -33,10 +32,6 @@ impl<'t> Iterator for Tokenizer<'t> {
         // Peek the next (utf-8) character
         if let Some(&(i, ch)) = self.chars.peek() {
             match ch {
-                ',' => {
-                    self.chars.next();
-                    return Some(Comma);
-                }
                 '(' => {
                     self.chars.next();
                     return Some(OpenParen);
@@ -58,7 +53,7 @@ impl<'t> Iterator for Tokenizer<'t> {
                 }
                 '+' => {
                     self.chars.next();
-                    return Some(Plus);
+                    return Some(AddOperator);
                 }
 
                 // `take_while` is problematic because this adaptor
@@ -160,20 +155,6 @@ mod tests {
         let mut tokenizer = Tokenizer::new("add");
 
         assert_eq!(tokenizer.next(), Some(Identifier("add")));
-        assert_eq!(tokenizer.next(), None);
-    }
-
-    #[test]
-    fn tokenize_id_and_numbers() {
-        let mut tokenizer = Tokenizer::new("add(1, 2)");
-
-        assert_eq!(tokenizer.next(), Some(Identifier("add")));
-        assert_eq!(tokenizer.next(), Some(OpenParen));
-        assert_eq!(tokenizer.next(), Some(NumLiteral("1")));
-        assert_eq!(tokenizer.next(), Some(Comma));
-        assert_eq!(tokenizer.next(), Some(Space));
-        assert_eq!(tokenizer.next(), Some(NumLiteral("2")));
-        assert_eq!(tokenizer.next(), Some(CloseParen));
         assert_eq!(tokenizer.next(), None);
     }
 }
