@@ -15,12 +15,12 @@ pub enum Expr<'e> {
     Program,
 }
 
-struct TreeBuilder<'a> {
+struct AstBuilder<'a> {
     tokens: Tokenizer<'a>,
 }
 
-impl<'a> TreeBuilder<'a> {
-    pub fn from(tokenizer: Tokenizer<'a>) -> TreeBuilder {
+impl<'a> AstBuilder<'a> {
+    pub fn from(tokenizer: Tokenizer<'a>) -> AstBuilder {
         Self { tokens: tokenizer }
     }
 
@@ -93,16 +93,16 @@ impl<'a> TreeBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{tokenizer::Tokenizer, tree_builder::Expr};
+    use crate::{ast_builder::Expr, tokenizer::Tokenizer};
 
-    use super::TreeBuilder;
+    use super::AstBuilder;
     use Expr::*;
 
     #[test]
     fn simple_add() {
         let input = "1 + 2";
         let tokenizer = Tokenizer::new(input);
-        let tb = TreeBuilder::from(tokenizer);
+        let tb = AstBuilder::from(tokenizer);
         let ast = tb.build();
         assert_eq!(
             ast,
