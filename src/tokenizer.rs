@@ -1,5 +1,7 @@
 use std::{iter::Peekable, str::CharIndices};
 
+use itertools::Itertools;
+
 #[derive(Debug)]
 pub struct Tokenizer<'t> {
     input: &'t str,
@@ -42,14 +44,9 @@ impl<'t> Iterator for Tokenizer<'t> {
                     return Some(CloseParen);
                 }
                 ' ' => {
-                    self.chars.next();
-                    while let Some(&(_, nc)) = self.chars.peek() {
-                        if nc != ' ' {
-                            break;
-                        }
-                        self.chars.next();
-                    }
-
+                    self.chars
+                        .peeking_take_while(|&(_, c)| c == ' ')
+                        .for_each(drop);
                     return Some(Space);
                 }
                 '+' => {
@@ -67,35 +64,38 @@ impl<'t> Iterator for Tokenizer<'t> {
                 // 2. check the value is okay with the predicate, and then
                 // 3. if okay, then comsume the next value,
                 // 4. otherwise, stop advancing the iterator
+                // And `itertools::peeking_take_while` provides this functionality
 
                 // Number Literal
                 d if d.is_ascii_digit() => {
-                    let (start, _nc) = self.chars.next().unwrap();
+                    let start = i;
                     let mut last = start;
-                    while let Some(&(_, c)) = self.chars.peek() {
-                        if c.is_ascii_digit() {
-                            let (pos, _nc) = self.chars.next().unwrap();
-                            last = pos;
-                        } else {
-                            break;
-                        }
-                    }
-                    return Some(Token::NumLiteral(&self.input[start..last + 1]));
+                    self.chars
+                        .peeking_take_while(|&(pos, d)| {
+                            if d.is_ascii_digit() {
+                                last = pos + d.len_utf8();
+                                return true;
+                            }
+                            return false;
+                        })
+                        .for_each(drop);
+                    return Some(Token::NumLiteral(&self.input[start..last]));
                 }
 
                 // Identifier
                 c if c.is_ascii_alphabetic() => {
-                    let (start, _nc) = self.chars.next().unwrap();
+                    let start = i;
                     let mut last = start;
-                    while let Some(&(_, c)) = self.chars.peek() {
-                        if c.is_ascii_alphabetic() {
-                            let (current, _nc) = self.chars.next().unwrap();
-                            last = current;
-                        } else {
-                            break;
-                        }
-                    }
-                    return Some(Token::Identifier(&self.input[start..last + 1]));
+                    self.chars
+                        .peeking_take_while(|&(pos, c)| {
+                            if c.is_ascii_alphabetic() {
+                                last = pos + c.len_utf8();
+                                return true;
+                            }
+                            false
+                        })
+                        .for_each(drop);
+                    return Some(Token::Identifier(&self.input[start..last]));
                 }
                 _ => panic!("unexpected character {} at {}", ch, i),
             }
