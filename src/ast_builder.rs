@@ -1,3 +1,5 @@
+use std::num::{IntErrorKind, ParseIntError};
+
 use crate::tokenizer::{Token, Tokenizer};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,8 +17,21 @@ pub enum Expr<'e> {
     Program,
 }
 
+#[derive(Debug)]
 struct AstBuilder<'a> {
     tokens: Tokenizer<'a>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum SyntaxError<'err> {
+    Unexpected(Token<'err>),
+    WrongFormat(IntErrorKind),
+}
+
+impl<'err> From<ParseIntError> for SyntaxError<'err> {
+    fn from(err: ParseIntError) -> Self {
+        SyntaxError::WrongFormat(err.kind().to_owned())
+    }
 }
 
 impl<'a> AstBuilder<'a> {
@@ -24,7 +39,7 @@ impl<'a> AstBuilder<'a> {
         Self { tokens: tokenizer }
     }
 
-    pub fn build(mut self) -> Expr<'a> {
+    pub fn build(mut self) -> Result<Expr<'a>, SyntaxError<'a>> {
         use Expr::*;
 
         let mut tree = Program;
@@ -36,49 +51,47 @@ impl<'a> AstBuilder<'a> {
                     Add {
                         left: _,
                         ref mut right,
-                    } => {
-                        if *right != None {
-                            panic!("unexpected identifier")
-                        }
-                        *right = Some(Box::new(Id { name: id }));
+                    } => match *right {
+                        Some(_) => return Err(SyntaxError::Unexpected(token)),
+                        None => *right = Some(Box::new(Id { name: id })),
+                    },
+                    Num { value: _ } | Id { name: _ } => {
+                        return Err(SyntaxError::Unexpected(token))
                     }
-                    Num { value: _ } | Id { name: _ } => panic!("unexpected identifier"),
                 },
 
                 NumLiteral(nstr) => {
-                    let num: i32 = nstr.parse().expect("not a number");
+                    let num: i32 = nstr.parse()?;
                     match tree {
                         Add {
                             left: _,
                             ref mut right,
-                        } => {
-                            if *right != None {
-                                panic!("unexpected number")
-                            }
-                            *right = Some(Box::new(Num { value: num }));
-                        }
+                        } => match *right {
+                            Some(_) => return Err(SyntaxError::Unexpected(token)),
+                            None => *right = Some(Box::new(Num { value: num })),
+                        },
                         Program => tree = Num { value: num },
                         Num { value: _ } | Id { name: _ } => panic!("unexpected number"),
                     }
                 }
 
                 AddOperator => match tree {
-                    Add { left: _, ref right } => {
-                        if *right == None {
-                            panic!("unexpected operator");
+                    Add { left: _, ref right } => match right {
+                        None => return Err(SyntaxError::Unexpected(token)),
+                        Some(_) => {
+                            tree = Add {
+                                left: Box::new(tree),
+                                right: None,
+                            }
                         }
-                        tree = Add {
-                            left: Box::new(tree),
-                            right: None,
-                        }
-                    }
+                    },
                     Num { value: _ } | Id { name: _ } => {
                         tree = Expr::Add {
                             left: Box::new(tree),
                             right: None,
                         };
                     }
-                    Program => panic!("unexpected operator"),
+                    Program => return Err(SyntaxError::Unexpected(token)),
                 },
 
                 Space => continue,
@@ -87,7 +100,7 @@ impl<'a> AstBuilder<'a> {
             }
         }
 
-        tree
+        Ok(tree)
     }
 }
 
@@ -95,15 +108,17 @@ impl<'a> AstBuilder<'a> {
 mod tests {
     use crate::{ast_builder::Expr, tokenizer::Tokenizer};
 
-    use super::AstBuilder;
+    use super::{AstBuilder, SyntaxError, Token};
+
     use Expr::*;
+    use Token::*;
 
     #[test]
-    fn simple_add() {
+    fn simple_add() -> Result<(), SyntaxError<'static>> {
         let input = "1 + 2";
         let tokenizer = Tokenizer::new(input);
         let tb = AstBuilder::from(tokenizer);
-        let ast = tb.build();
+        let ast = tb.build()?;
         assert_eq!(
             ast,
             Expr::Add {
@@ -111,5 +126,37 @@ mod tests {
                 right: Some(Box::new(Num { value: 2 })),
             }
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn simple_add_2() -> Result<(), SyntaxError<'static>> {
+        let input = "1 + 2 + 3";
+        let tokenizer = Tokenizer::new(input);
+        let tb = AstBuilder::from(tokenizer);
+        let ast = tb.build()?;
+        assert_eq!(
+            ast,
+            Add {
+                left: Box::new(Add {
+                    left: Box::new(Num { value: 1 }),
+                    right: Some(Box::new(Num { value: 2 })),
+                }),
+                right: Some(Box::new(Num { value: 3 }))
+            }
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn unexpected_operator() {
+        let input = "+ 3";
+        let tokenizer = Tokenizer::new(input);
+        let astb = AstBuilder::from(tokenizer);
+        let ast = astb.build();
+
+        assert_eq!(ast, Err(SyntaxError::Unexpected(AddOperator)));
     }
 }

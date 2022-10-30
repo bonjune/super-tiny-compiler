@@ -1,5 +1,6 @@
 use std::{iter::Peekable, str::CharIndices};
 
+#[derive(Debug)]
 pub struct Tokenizer<'t> {
     input: &'t str,
     chars: Peekable<CharIndices<'t>>,
