@@ -2,12 +2,16 @@ use crate::tokenizer::{Token, Tokenizer};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr<'e> {
-    Num(i32),
+    Num {
+        value: i32,
+    },
     Add {
         left: Box<Expr<'e>>,
         right: Option<Box<Expr<'e>>>,
     },
-    Id(&'e str),
+    Id {
+        name: &'e str,
+    },
     Program,
 }
 
@@ -28,7 +32,7 @@ impl<'a> TreeBuilder<'a> {
             use Token::*;
             match token {
                 Identifier(id) => match tree {
-                    Program => tree = Id(id),
+                    Program => tree = Id { name: id },
                     Add {
                         left: _,
                         ref mut right,
@@ -36,9 +40,9 @@ impl<'a> TreeBuilder<'a> {
                         if *right != None {
                             panic!("unexpected identifier")
                         }
-                        *right = Some(Box::new(Id(id)));
+                        *right = Some(Box::new(Id { name: id }));
                     }
-                    Num(_) | Id(_) => panic!("unexpected identifier"),
+                    Num { value: _ } | Id { name: _ } => panic!("unexpected identifier"),
                 },
 
                 NumLiteral(nstr) => {
@@ -51,10 +55,10 @@ impl<'a> TreeBuilder<'a> {
                             if *right != None {
                                 panic!("unexpected number")
                             }
-                            *right = Some(Box::new(Num(num)));
+                            *right = Some(Box::new(Num { value: num }));
                         }
-                        Program => tree = Num(num),
-                        Num(_) | Id(_) => panic!("unexpected number"),
+                        Program => tree = Num { value: num },
+                        Num { value: _ } | Id { name: _ } => panic!("unexpected number"),
                     }
                 }
 
@@ -68,7 +72,7 @@ impl<'a> TreeBuilder<'a> {
                             right: None,
                         }
                     }
-                    Id(_) | Num(_) => {
+                    Num { value: _ } | Id { name: _ } => {
                         tree = Expr::Add {
                             left: Box::new(tree),
                             right: None,
@@ -92,6 +96,7 @@ mod tests {
     use crate::{tokenizer::Tokenizer, tree_builder::Expr};
 
     use super::TreeBuilder;
+    use Expr::*;
 
     #[test]
     fn simple_add() {
@@ -102,8 +107,8 @@ mod tests {
         assert_eq!(
             ast,
             Expr::Add {
-                left: Box::new(Expr::Num(1)),
-                right: Some(Box::new(Expr::Num(2))),
+                left: Box::new(Num { value: 1 }),
+                right: Some(Box::new(Num { value: 2 })),
             }
         );
     }
