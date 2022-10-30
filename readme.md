@@ -1,3 +1,15 @@
+# Super Tiny Compiler
+
+## Language Specification
+
+```
+<digits> ::= "0" | "1" | ... | "9"
+<num> ::= <digits>
+        | <digits> <num>
+<expr> ::=  <num>
+        |   <expr> "+" <expr>
+```
+
 ## Tokenizer
 
 `Tokenizer` is an `Iterator` which traverses string slice, producing `Token` values.
