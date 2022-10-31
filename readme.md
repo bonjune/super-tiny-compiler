@@ -1,5 +1,12 @@
 # Super Tiny Compiler
 
+This toy project will contain
+
+1. `Tokenizer` (a.k.a lexer,) which takes an string input and produces a series of `Token`s.
+2. `AstBuilder`, which transforms a series of `Token`s into a single `Expr` (astract syntax tree).
+3. `Interpreter`, which evaluates a given `Expr` into a value.
+4. `IrGen`, which converts `Expr` into an intermediate representation (could be LLVM IR).
+
 ## Language Specification
 
 ```
@@ -9,6 +16,8 @@
 <expr> ::=  <num>
         |   <expr> "+" <expr>
 ```
+
+And the semantics is straight-forward.
 
 ## Tokenizer
 
@@ -31,8 +40,12 @@ But, in Rust, those details are exposed to a programmer with it's type system an
 
 ## `AstBuilder`
 
-`AstBuilder` consumes `Tokenizer` and builds an abstract syntax tree.
+`AstBuilder` consumes `Tokenizer` and builds an abstract syntax tree, which is `Expr`.
 
-## CodeGen
+## `Interpreter`
 
+`Interpreter` evaluates `Expr` into `Value`. With an interpreter, we can test working example of `Expr`!
 
+## `IrGen`
+
+Nothing fixed.
